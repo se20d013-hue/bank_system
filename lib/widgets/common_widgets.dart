@@ -35,9 +35,8 @@ class AppButton extends StatelessWidget {
       child: isOutlined
           ? OutlinedButton.icon(
               onPressed: isLoading ? null : onPressed,
-              icon: icon != null
-                  ? Icon(icon, size: 20)
-                  : const SizedBox.shrink(),
+              icon:
+                  icon != null ? Icon(icon, size: 20) : const SizedBox.shrink(),
               label: isLoading
                   ? const SizedBox(
                       width: 20,
@@ -91,7 +90,7 @@ class AppButton extends StatelessWidget {
 }
 
 // =============================================
-// ТЕКСТ ОРУУЛАХ ТАЛБАР
+// ТЕКСТ ОРУУЛАХ ТАЛБАР  ← ЗАСАГДСАН
 // =============================================
 class AppTextField extends StatelessWidget {
   final TextEditingController controller;
@@ -106,6 +105,7 @@ class AppTextField extends StatelessWidget {
   final int? maxLines;
   final bool readOnly;
   final VoidCallback? onTap;
+  final ValueChanged<String>? onChanged; // ← optional болгосон
 
   const AppTextField({
     super.key,
@@ -121,6 +121,7 @@ class AppTextField extends StatelessWidget {
     this.maxLines = 1,
     this.readOnly = false,
     this.onTap,
+    this.onChanged, // ← optional, required биш
   });
 
   @override
@@ -131,9 +132,10 @@ class AppTextField extends StatelessWidget {
       keyboardType: keyboardType,
       inputFormatters: inputFormatters,
       validator: validator,
-      maxLines: maxLines,
+      maxLines: obscureText ? 1 : maxLines,
       readOnly: readOnly,
       onTap: onTap,
+      onChanged: onChanged, // ← null бол автоматаар дамжуулахгүй
       style: AppTextStyles.bodyMedium,
       decoration: InputDecoration(
         labelText: label,
@@ -230,9 +232,8 @@ class LoanCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: (isOverdue ? AppColors.error : cardColor).withOpacity(
-                0.35,
-              ),
+              color:
+                  (isOverdue ? AppColors.error : cardColor).withOpacity(0.35),
               blurRadius: 20,
               offset: const Offset(0, 8),
             ),
@@ -255,10 +256,8 @@ class LoanCard extends StatelessWidget {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 4,
-                  ),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(20),
@@ -509,10 +508,10 @@ class _LoadingShimmerState extends State<LoadingShimmer>
           gradient: LinearGradient(
             begin: Alignment(_anim.value - 1, 0),
             end: Alignment(_anim.value + 1, 0),
-            colors: [
-              const Color(0xFFE2E8F0),
-              const Color(0xFFF8FAFC),
-              const Color(0xFFE2E8F0),
+            colors: const [
+              Color(0xFFE2E8F0),
+              Color(0xFFF8FAFC),
+              Color(0xFFE2E8F0),
             ],
           ),
         ),

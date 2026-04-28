@@ -16,7 +16,7 @@ class SupabaseService {
     );
   }
 
-  // ── Нэвтрэх (и-мэйл + нууц үгээр — RLS асуудалгүй) ──
+  // ── Нэвтрэх (и-мэйл + нууц үгээр) ──
   static Future<AuthResponse> signInWithEmail({
     required String email,
     required String password,
@@ -27,7 +27,7 @@ class SupabaseService {
     );
   }
 
-  // ── Нэвтрэх (утасны дугаараар → profiles-с жинхэнэ email хайж нэвтрэх) ──
+  // ── Нэвтрэх (утасны дугаараар) ──
   static Future<AuthResponse> signIn({
     required String phone,
     required String password,
@@ -84,6 +84,32 @@ class SupabaseService {
 
   static Future<void> signOut() async => await _client.auth.signOut();
 
+  // ── Нууц үг солих ──
+  static Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final user = currentUser;
+    if (user == null) throw Exception('Нэвтрээгүй байна');
+    if (user.email == null) throw Exception('И-мэйл олдсонгүй');
+
+    // Одоогийн нууц үгийг баталгаажуулах
+    await _client.auth.signInWithPassword(
+      email: user.email!,
+      password: currentPassword,
+    );
+
+    // Шинэ нууц үг тохируулах
+    final response = await _client.auth.updateUser(
+      UserAttributes(password: newPassword),
+    );
+
+    if (response.user == null) {
+      throw Exception('Нууц үг солиход алдаа гарлаа');
+    }
+  }
+
+  // ── Профайл ──
   static Future<ProfileModel?> getProfile() async {
     if (currentUserId == null) return null;
     final data = await _client
@@ -102,6 +128,7 @@ class SupabaseService {
     }).eq('id', currentUserId!);
   }
 
+  // ── Зээлийн бүтээгдэхүүн ──
   static Future<List<LoanProductModel>> getLoanProducts() async {
     final data = await _client
         .from('loan_products')
@@ -113,6 +140,7 @@ class SupabaseService {
         .toList();
   }
 
+  // ── Зээлийн хүсэлт илгээх ──
   static Future<LoanApplicationModel> submitLoanApplication({
     required String productId,
     required double requestedAmount,
@@ -150,6 +178,7 @@ class SupabaseService {
         .toList();
   }
 
+  // ── Зээл ──
   static Future<List<LoanModel>> getMyLoans() async {
     final data = await _client
         .from('loans')
@@ -179,6 +208,7 @@ class SupabaseService {
         .toList();
   }
 
+  // ── Төлбөр ──
   static Future<void> makePayment({
     required String loanId,
     required double amount,
@@ -207,6 +237,7 @@ class SupabaseService {
         .order('paid_at', ascending: false);
   }
 
+  // ── Мэдэгдэл ──
   static Future<List<Map<String, dynamic>>> getNotifications() async {
     if (currentUserId == null) return [];
     return await _client
@@ -223,6 +254,7 @@ class SupabaseService {
         .update({'is_read': true}).eq('id', notificationId);
   }
 
+  // ── Тооцоолол ──
   static double _pow(double base, int exponent) {
     double result = 1.0;
     for (int i = 0; i < exponent; i++) {

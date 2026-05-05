@@ -15,6 +15,9 @@ class ProfileModel {
   final String? employerName;
   final bool isVerified;
   final String? profileImageUrl;
+  final String? avatarUrl; // ✅ Нэмсэн
+  final String? emergencyContactName; // ✅ Нэмсэн
+  final String? emergencyContactPhone; // ✅ Нэмсэн
 
   ProfileModel({
     required this.id,
@@ -32,6 +35,9 @@ class ProfileModel {
     this.employerName,
     this.isVerified = false,
     this.profileImageUrl,
+    this.avatarUrl,
+    this.emergencyContactName,
+    this.emergencyContactPhone,
   });
 
   String get fullName => '$lastName $firstName';
@@ -46,10 +52,10 @@ class ProfileModel {
 
   factory ProfileModel.fromJson(Map<String, dynamic> json) => ProfileModel(
         id: json['id'],
-        registerNumber: json['register_number'],
-        lastName: json['last_name'],
-        firstName: json['first_name'],
-        phone: json['phone'],
+        registerNumber: json['register_number'] ?? '',
+        lastName: json['last_name'] ?? '',
+        firstName: json['first_name'] ?? '',
+        phone: json['phone'] ?? '',
         email: json['email'],
         birthDate: json['birth_date'] != null
             ? DateTime.parse(json['birth_date'])
@@ -62,6 +68,9 @@ class ProfileModel {
         employerName: json['employer_name'],
         isVerified: json['is_verified'] ?? false,
         profileImageUrl: json['profile_image_url'],
+        avatarUrl: json['avatar_url'], // ✅
+        emergencyContactName: json['emergency_contact_name'], // ✅
+        emergencyContactPhone: json['emergency_contact_phone'], // ✅
       );
 
   Map<String, dynamic> toJson() => {
@@ -76,6 +85,9 @@ class ProfileModel {
         'monthly_income': monthlyIncome,
         'employment_type': employmentType,
         'employer_name': employerName,
+        'avatar_url': avatarUrl,
+        'emergency_contact_name': emergencyContactName,
+        'emergency_contact_phone': emergencyContactPhone,
       };
 }
 
@@ -155,8 +167,6 @@ class LoanModel {
   final double penaltyAmount;
   final DateTime? disbursedAt;
 
-  var loanAmount;
-
   LoanModel({
     required this.id,
     required this.loanNumber,
@@ -186,6 +196,9 @@ class LoanModel {
 
   bool get isOverdue => status == 'overdue';
   bool get isActive => status == 'active';
+
+  double? get remainingBalance => outstandingPrincipal;
+  double? get loanAmount => principalAmount;
 
   String get statusLabel {
     switch (status) {
@@ -225,8 +238,6 @@ class LoanModel {
             ? DateTime.parse(json['disbursed_at'])
             : null,
       );
-
-  Null get remainingBalance => null;
 }
 
 // lib/models/loan_application_model.dart

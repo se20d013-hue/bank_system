@@ -7,11 +7,10 @@ import '../utils/utils.dart';
 import '../widgets/common_widgets.dart';
 import 'loan_products_screen.dart';
 import 'my_loans_screen.dart';
-
 import 'profile_screen.dart' hide NotificationsScreen;
 import 'notifications_screen.dart';
+import '../screens/loan_calculator_screen.dart';
 
-// ── Dark Purple өнгөний тогтолцоо ──
 class DarkColors {
   static const bg = Color(0xFF0D0B1E);
   static const surface = Color(0xFF1A1730);
@@ -26,22 +25,10 @@ class DarkColors {
   static const border = Color(0xFF2E2850);
 }
 
-class HomeScreen extends StatefulWidget {
+// ✅ HomeScreen = зөвхөн _HomeTab харуулна
+//    BottomNav нь main.dart-н MainNavigation-д байна
+class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
-
-  @override
-  State<HomeScreen> createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends State<HomeScreen> {
-  int _currentIndex = 0;
-
-  final _tabs = const [
-    _HomeTab(),
-    MyLoansScreen(),
-    LoanProductsScreen(),
-    ProfileScreen(),
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -49,86 +36,7 @@ class _HomeScreenState extends State<HomeScreen> {
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.light,
     ));
-
-    return Scaffold(
-      backgroundColor: DarkColors.bg,
-      body: IndexedStack(index: _currentIndex, children: _tabs),
-      bottomNavigationBar: _BottomNav(
-        current: _currentIndex,
-        onTap: (i) => setState(() => _currentIndex = i),
-      ),
-    );
-  }
-}
-
-class _BottomNav extends StatelessWidget {
-  final int current;
-  final ValueChanged<int> onTap;
-  const _BottomNav({required this.current, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final items = [
-      (Icons.grid_view_rounded, Icons.grid_view_outlined, 'Нүүр'),
-      (Icons.credit_card_rounded, Icons.credit_card_outlined, 'Зээл'),
-      (Icons.storefront_rounded, Icons.storefront_outlined, 'Бүтээгдэхүүн'),
-      (Icons.person_rounded, Icons.person_outline_rounded, 'Профайл'),
-    ];
-
-    return Container(
-      decoration: BoxDecoration(
-        color: DarkColors.surface,
-        border: Border(top: BorderSide(color: DarkColors.border)),
-      ),
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).padding.bottom + 4,
-        top: 8,
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: List.generate(items.length, (i) {
-          final selected = i == current;
-          return GestureDetector(
-            onTap: () => onTap(i),
-            behavior: HitTestBehavior.opaque,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: selected
-                    ? DarkColors.purple1.withOpacity(0.15)
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    selected ? items[i].$1 : items[i].$2,
-                    color: selected
-                        ? DarkColors.purple2
-                        : DarkColors.textSecondary,
-                    size: 22,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    items[i].$3,
-                    style: TextStyle(
-                      color: selected
-                          ? DarkColors.purple2
-                          : DarkColors.textSecondary,
-                      fontSize: 10,
-                      fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
-                      fontFamily: 'Gilroy',
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }),
-      ),
-    );
+    return const _HomeTab();
   }
 }
 
@@ -183,26 +91,19 @@ class _HomeTabState extends State<_HomeTab> {
         onRefresh: _loadData,
         child: CustomScrollView(
           slivers: [
-            // ── Header ──
             SliverToBoxAdapter(child: _buildHeader(context)),
-
-            // ── Balance Card ──
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
                 child: _buildBalanceCard(),
               ),
             ),
-
-            // ── Quick Actions ──
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
                 child: _buildQuickActions(context),
               ),
             ),
-
-            // ── Миний зээлүүд ──
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
@@ -223,16 +124,13 @@ class _HomeTabState extends State<_HomeTab> {
                       child: const Text(
                         'Бүгдийг харах',
                         style: TextStyle(
-                          color: DarkColors.purple2,
-                          fontFamily: 'Gilroy',
-                        ),
+                            color: DarkColors.purple2, fontFamily: 'Gilroy'),
                       ),
                     ),
                   ],
                 ),
               ),
             ),
-
             if (_loading)
               SliverToBoxAdapter(
                 child: Padding(
@@ -286,8 +184,7 @@ class _HomeTabState extends State<_HomeTab> {
                         onPressed: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const LoanProductsScreen(),
-                          ),
+                              builder: (_) => const LoanProductsScreen()),
                         ),
                       ),
                     ],
@@ -315,7 +212,6 @@ class _HomeTabState extends State<_HomeTab> {
                   childCount: _activeLoans.length,
                 ),
               ),
-
             const SliverToBoxAdapter(child: SizedBox(height: 100)),
           ],
         ),
@@ -414,10 +310,7 @@ class _HomeTabState extends State<_HomeTab> {
               const Text(
                 'Нийт зээлийн үлдэгдэл',
                 style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 13,
-                  fontFamily: 'Gilroy',
-                ),
+                    color: Colors.white70, fontSize: 13, fontFamily: 'Gilroy'),
               ),
               GestureDetector(
                 onTap: () => setState(() => _balanceVisible = !_balanceVisible),
@@ -492,7 +385,7 @@ class _HomeTabState extends State<_HomeTab> {
         'Тооцоолуур',
         const Color(0xFF10B981),
         () => Navigator.push(context,
-            MaterialPageRoute(builder: (_) => const LoanProductsScreen()))
+            MaterialPageRoute(builder: (_) => const LoanCalculatorScreen()))
       ),
       (Icons.history_rounded, 'Түүх', const Color(0xFFF59E0B), () {}),
     ];
@@ -531,11 +424,7 @@ class _HomeTabState extends State<_HomeTab> {
     );
   }
 
-  Widget _shimmer({
-    double height = 20,
-    double? width,
-    bool light = false,
-  }) {
+  Widget _shimmer({double height = 20, double? width, bool light = false}) {
     return Container(
       height: height,
       width: width,
@@ -547,7 +436,6 @@ class _HomeTabState extends State<_HomeTab> {
   }
 }
 
-// ── Dark Loan Card ──
 class _DarkLoanCard extends StatelessWidget {
   final LoanModel loan;
   final VoidCallback onTap;
@@ -745,17 +633,15 @@ class _PurpleButton extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [DarkColors.purple1, DarkColors.purple2],
-            ),
+                colors: [DarkColors.purple1, DarkColors.purple2]),
             borderRadius: BorderRadius.circular(14),
           ),
           child: Text(
             label,
             style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-              fontFamily: 'Gilroy',
-            ),
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontFamily: 'Gilroy'),
           ),
         ),
       );

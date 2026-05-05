@@ -35,14 +35,17 @@ class _LoanProductsScreenState extends State<LoanProductsScreen> {
     }
   }
 
-  void _goToApply(LoanProductModel product) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ApplyLoanScreen(product: product),
+ void _goToApply(LoanProductModel product) {
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => ApplyLoanScreen(
+        product: product,
+        initialAmount: 0,
       ),
-    );
-  }
+    ),
+  );
+}
 
   @override
   Widget build(BuildContext context) {

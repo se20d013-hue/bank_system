@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
 import '../services/supabase_service.dart';
 import '../widgets/common_widgets.dart';
-import 'home_screen.dart';
+import 'main_navigation.dart'; // ✅ HomeScreen-ийн оронд MainNavigation
 
 // =============================================
 // НЭВТРЭХ ДЭЛГЭЦ — утас эсвэл и-мэйл + нууц үг
@@ -16,7 +16,7 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _loginCtrl = TextEditingController(); // утас эсвэл имэйл
+  final _loginCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
   bool _loading = false;
   bool _obscure = true;
@@ -38,13 +38,11 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _loading = true);
     try {
       if (_isEmail) {
-        // И-мэйлээр нэвтрэх
         await SupabaseService.signInWithEmail(
           email: _loginCtrl.text.trim(),
           password: _passCtrl.text,
         );
       } else {
-        // Утасны дугаараар нэвтрэх
         await SupabaseService.signIn(
           phone: _loginCtrl.text.trim(),
           password: _passCtrl.text,
@@ -53,7 +51,8 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          MaterialPageRoute(
+              builder: (_) => const MainNavigation()), // ✅ Засварласан
         );
       }
     } catch (e) {
@@ -114,7 +113,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 40),
-              // Утас эсвэл и-мэйл — хоёуланг хүлээн авна
               AppTextField(
                 controller: _loginCtrl,
                 label: 'Утасны дугаар эсвэл и-мэйл',

@@ -1,18 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'services/supabase_service.dart';
 import 'theme/app_theme.dart';
 import 'screens/auth_screens.dart';
-import 'screens/home_screen.dart';
+import 'screens/main_navigation.dart'; // ✅ Bottom nav wrapper
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Status bar transparent
+  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    statusBarIconBrightness: Brightness.light,
+  ));
+
   await Supabase.initialize(
     url: 'https://msxuvfrttvcjrzwabnyk.supabase.co',
     anonKey:
         'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1zeHV2ZnJ0dHZjanJ6d2FibnlrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxMTk1NDIsImV4cCI6MjA4ODY5NTU0Mn0.B7T1uNvpfCfG-dpQusBYwqBdNmusKzY7_YOBWZZOjlo',
   );
-  // Status bar transparent болго
+
   runApp(const LoanApp());
 }
 
@@ -25,12 +32,11 @@ class LoanApp extends StatelessWidget {
       title: 'Зээлийн Аппликейшн',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      home: const LoginScreen(),
+      home: const _SplashWrapper(), // ✅ Session шалгаад чиглүүлнэ
     );
   }
 }
 
-/// Session шалгаж, нэвтэрсэн бол HomeScreen, үгүй бол LoginScreen руу явна
 class _SplashWrapper extends StatefulWidget {
   const _SplashWrapper();
 
@@ -53,7 +59,7 @@ class _SplashWrapperState extends State<_SplashWrapper> {
       context,
       MaterialPageRoute(
         builder: (_) =>
-            session != null ? const HomeScreen() : const LoginScreen(),
+            session != null ? const MainNavigation() : const LoginScreen(),
       ),
     );
   }
@@ -108,4 +114,4 @@ class _SplashWrapperState extends State<_SplashWrapper> {
       ),
     );
   }
-}
+} 

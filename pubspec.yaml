@@ -24,6 +24,7 @@ dependencies:
   gap: ^3.0.1
   percent_indicator: ^4.2.3
   cupertino_icons: ^1.0.2
+  http: ^1.2.0
 
 dev_dependencies:
   flutter_test:

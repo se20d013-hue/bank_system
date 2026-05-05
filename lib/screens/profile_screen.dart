@@ -1,4 +1,7 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import '../theme/app_theme.dart';
 import '../services/supabase_service.dart';
 import '../models/models.dart';
@@ -75,6 +78,8 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   ProfileModel? _profile;
   bool _loading = true;
+  bool _uploadingPhoto = false;
+  String? _avatarUrl;
 
   @override
   void initState() {
@@ -88,6 +93,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (mounted) {
         setState(() {
           _profile = p;
+          _avatarUrl = p?.avatarUrl;
           _loading = false;
         });
       }
@@ -96,11 +102,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  void _toggleLanguage() {
-    setState(() {
-      AppLocalizations.isMongolian = !AppLocalizations.isMongolian;
-    });
+  // ── Нүүр зураг оруулах ──────────────────────
+  Future<void> _pickAndUploadPhoto() async {
+    try {
+      final picker = ImagePicker();
+      final picked =
+          await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+      if (picked == null) return;
+
+      setState(() => _uploadingPhoto = true);
+      final bytes = await picked.readAsBytes();
+      final ext = picked.name.split('.').last;
+      final url =
+          await SupabaseService.uploadAvatar(bytes: bytes, extension: ext);
+      if (mounted) {
+        setState(() {
+          _avatarUrl = url;
+          _uploadingPhoto = false;
+        });
+        AppSnackbar.show(
+            context,
+            AppLocalizations.isMongolian
+                ? 'Зураг шинэчлэгдлээ!'
+                : 'Photo updated!');
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _uploadingPhoto = false);
+        AppSnackbar.show(
+          context,
+          AppLocalizations.isMongolian
+              ? 'Зураг оруулахад алдаа гарлаа'
+              : 'Failed to upload photo',
+          isError: true,
+        );
+      }
+    }
   }
+
+  void _toggleLanguage() => setState(
+      () => AppLocalizations.isMongolian = !AppLocalizations.isMongolian);
 
   @override
   Widget build(BuildContext context) {
@@ -110,7 +151,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         title: Text(AppLocalizations.profile),
         centerTitle: true,
         actions: [
-          // Хэл солих товч
           Padding(
             padding: const EdgeInsets.only(right: 12),
             child: GestureDetector(
@@ -147,8 +187,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       body: _loading
           ? const Center(
-              child: CircularProgressIndicator(color: AppColors.primaryLight),
-            )
+              child: CircularProgressIndicator(color: AppColors.primaryLight))
           : RefreshIndicator(
               onRefresh: _load,
               child: SingleChildScrollView(
@@ -156,52 +195,73 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 physics: const AlwaysScrollableScrollPhysics(),
                 child: Column(
                   children: [
-                    // Avatar
+                    // ── Avatar + upload ──────────────────────────
                     Stack(
                       alignment: Alignment.bottomRight,
                       children: [
-                        Container(
-                          width: 90,
-                          height: 90,
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [
-                                AppColors.primary,
-                                AppColors.primaryLight
+                        GestureDetector(
+                          onTap: _pickAndUploadPhoto,
+                          child: Container(
+                            width: 90,
+                            height: 90,
+                            decoration: BoxDecoration(
+                              gradient: _avatarUrl == null
+                                  ? const LinearGradient(
+                                      colors: [
+                                        AppColors.primary,
+                                        AppColors.primaryLight
+                                      ],
+                                    )
+                                  : null,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.primary.withOpacity(0.3),
+                                  blurRadius: 16,
+                                  offset: const Offset(0, 6),
+                                ),
                               ],
+                              image: _avatarUrl != null
+                                  ? DecorationImage(
+                                      image: NetworkImage(_avatarUrl!),
+                                      fit: BoxFit.cover,
+                                    )
+                                  : null,
                             ),
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.primary.withOpacity(0.3),
-                                blurRadius: 16,
-                                offset: const Offset(0, 6),
-                              ),
-                            ],
-                          ),
-                          child: Center(
-                            child: Text(
-                              _profile != null
-                                  ? _profile!.firstName[0].toUpperCase()
-                                  : '?',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 36,
-                                fontWeight: FontWeight.w800,
-                                fontFamily: 'Gilroy',
-                              ),
-                            ),
+                            child: _uploadingPhoto
+                                ? const Center(
+                                    child: CircularProgressIndicator(
+                                        color: Colors.white, strokeWidth: 2))
+                                : _avatarUrl == null
+                                    ? Center(
+                                        child: Text(
+                                          _profile != null
+                                              ? _profile!.firstName[0]
+                                                  .toUpperCase()
+                                              : '?',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 36,
+                                            fontWeight: FontWeight.w800,
+                                            fontFamily: 'Gilroy',
+                                          ),
+                                        ),
+                                      )
+                                    : null,
                           ),
                         ),
-                        Container(
-                          width: 28,
-                          height: 28,
-                          decoration: const BoxDecoration(
-                            color: AppColors.primaryLight,
-                            shape: BoxShape.circle,
+                        GestureDetector(
+                          onTap: _pickAndUploadPhoto,
+                          child: Container(
+                            width: 28,
+                            height: 28,
+                            decoration: const BoxDecoration(
+                              color: AppColors.primaryLight,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.camera_alt_outlined,
+                                color: Colors.white, size: 14),
                           ),
-                          child: const Icon(Icons.camera_alt_outlined,
-                              color: Colors.white, size: 14),
                         ),
                       ],
                     ),
@@ -234,7 +294,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ],
                     const SizedBox(height: 24),
 
-                    // Credit score card
+                    // ── Зээлийн оноо карт ────────────────────────
                     Container(
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
@@ -269,7 +329,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const SizedBox(height: 24),
 
-                    // Personal info
+                    // ── Хувийн мэдээлэл ──────────────────────────
                     _SectionCard(
                       title: AppLocalizations.personalInfo,
                       icon: Icons.person_outline,
@@ -291,7 +351,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Settings menu
+                    // ── Тохиргоо цэс ─────────────────────────────
                     _SectionCard(
                       title: AppLocalizations.settings,
                       icon: Icons.settings_outlined,
@@ -303,7 +363,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             context,
                             MaterialPageRoute(
                                 builder: (_) => const EditProfileScreen()),
-                          ).then((_) => setState(() {})),
+                          ).then((_) => _load()),
                         ),
                         _MenuItem(
                           icon: Icons.lock_outline,
@@ -317,18 +377,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         _MenuItem(
                           icon: Icons.notifications_outlined,
                           label: AppLocalizations.notificationSettings,
-                          onTap: () {},
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) =>
+                                    const NotificationSettingsScreen()),
+                          ),
                         ),
                         _MenuItem(
                           icon: Icons.help_outline,
                           label: AppLocalizations.helpContact,
-                          onTap: () {},
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const HelpContactScreen()),
+                          ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 16),
 
-                    // Logout
+                    // ── Гарах ────────────────────────────────────
                     AppButton(
                       label: AppLocalizations.logout,
                       onPressed: () async {
@@ -349,6 +418,335 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     const SizedBox(height: 32),
                   ],
                 ),
+              ),
+            ),
+    );
+  }
+}
+
+// =============================================
+// МЭДЭЭЛЭЛ ЗАСАХ ДЭЛГЭЦ (бүрэн талбартай)
+// =============================================
+class EditProfileScreen extends StatefulWidget {
+  const EditProfileScreen({super.key});
+
+  @override
+  State<EditProfileScreen> createState() => _EditProfileScreenState();
+}
+
+class _EditProfileScreenState extends State<EditProfileScreen> {
+  final _lastNameCtrl = TextEditingController();
+  final _firstNameCtrl = TextEditingController();
+  final _phoneCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController();
+  final _addressCtrl = TextEditingController();
+  final _employerCtrl = TextEditingController();
+  final _incomeCtrl = TextEditingController();
+  final _emergencyNameCtrl = TextEditingController();
+  final _emergencyPhoneCtrl = TextEditingController();
+  String? _employmentType;
+  bool _loading = false;
+  bool _loadingProfile = true;
+
+  List<Map<String, String>> get _employmentTypes => [
+        {
+          'value': 'employee',
+          'label': AppLocalizations.isMongolian ? 'Ажилтан' : 'Employee'
+        },
+        {
+          'value': 'self_employed',
+          'label':
+              AppLocalizations.isMongolian ? 'Өөрөө ажиллагч' : 'Self-employed'
+        },
+        {
+          'value': 'business_owner',
+          'label': AppLocalizations.isMongolian
+              ? 'Бизнес эзэмшигч'
+              : 'Business Owner'
+        },
+      ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    try {
+      final p = await SupabaseService.getProfile();
+      if (mounted && p != null) {
+        _lastNameCtrl.text = p.lastName ?? '';
+        _firstNameCtrl.text = p.firstName;
+        _phoneCtrl.text = p.phone ?? '';
+        _emailCtrl.text = p.email ?? '';
+        _addressCtrl.text = p.address ?? '';
+        _employerCtrl.text = p.employerName ?? '';
+        _incomeCtrl.text =
+            p.monthlyIncome != null ? p.monthlyIncome.toString() : '';
+        _emergencyNameCtrl.text = p.emergencyContactName ?? '';
+        _emergencyPhoneCtrl.text = p.emergencyContactPhone ?? '';
+        _employmentType = p.employmentType;
+        setState(() => _loadingProfile = false);
+      } else {
+        setState(() => _loadingProfile = false);
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loadingProfile = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _lastNameCtrl.dispose();
+    _firstNameCtrl.dispose();
+    _phoneCtrl.dispose();
+    _emailCtrl.dispose();
+    _addressCtrl.dispose();
+    _employerCtrl.dispose();
+    _incomeCtrl.dispose();
+    _emergencyNameCtrl.dispose();
+    _emergencyPhoneCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (_lastNameCtrl.text.isEmpty || _firstNameCtrl.text.isEmpty) {
+      AppSnackbar.show(
+        context,
+        AppLocalizations.isMongolian
+            ? 'Овог нэрийг бөглөнө үү'
+            : 'Please enter your name',
+        isError: true,
+      );
+      return;
+    }
+    setState(() => _loading = true);
+    try {
+      await SupabaseService.updateProfile({
+        'last_name': _lastNameCtrl.text.trim(),
+        'first_name': _firstNameCtrl.text.trim(),
+        'phone': _phoneCtrl.text.trim(),
+        'email': _emailCtrl.text.trim(),
+        'address': _addressCtrl.text.trim(),
+        'employer_name': _employerCtrl.text.trim(),
+        'monthly_income': double.tryParse(_incomeCtrl.text) ?? 0,
+        'emergency_contact_name': _emergencyNameCtrl.text.trim(),
+        'emergency_contact_phone': _emergencyPhoneCtrl.text.trim(),
+        'employment_type': _employmentType,
+      });
+      if (mounted) {
+        AppSnackbar.show(
+          context,
+          AppLocalizations.isMongolian
+              ? 'Мэдээлэл амжилттай хадгалагдлаа!'
+              : 'Profile updated successfully!',
+        );
+        Navigator.pop(context);
+      }
+    } catch (_) {
+      if (mounted) {
+        AppSnackbar.show(
+          context,
+          AppLocalizations.isMongolian
+              ? 'Хадгалахад алдаа гарлаа'
+              : 'Failed to save',
+          isError: true,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Widget _sectionHeader(String title) => Padding(
+        padding: const EdgeInsets.only(top: 24, bottom: 12),
+        child: Row(
+          children: [
+            Container(
+              width: 4,
+              height: 18,
+              decoration: BoxDecoration(
+                color: AppColors.primaryLight,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              title,
+              style: AppTextStyles.bodyMedium.copyWith(
+                fontWeight: FontWeight.w700,
+                color: AppColors.primaryLight,
+              ),
+            ),
+          ],
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: Text(AppLocalizations.editProfile),
+        centerTitle: true,
+        leading: const BackButton(),
+      ),
+      body: _loadingProfile
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.primaryLight))
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ── Хувийн мэдээлэл ────────────────────────
+                  _sectionHeader(AppLocalizations.isMongolian
+                      ? 'Хувийн мэдээлэл'
+                      : 'Personal Info'),
+                  AppTextField(
+                    controller: _lastNameCtrl,
+                    label: AppLocalizations.isMongolian ? 'Овог' : 'Last Name',
+                    hint: AppLocalizations.isMongolian
+                        ? 'Овгоо оруулна уу'
+                        : 'Enter last name',
+                    prefixIcon: Icons.person_outline,
+                  ),
+                  const SizedBox(height: 16),
+                  AppTextField(
+                    controller: _firstNameCtrl,
+                    label: AppLocalizations.isMongolian ? 'Нэр' : 'First Name',
+                    hint: AppLocalizations.isMongolian
+                        ? 'Нэрээ оруулна уу'
+                        : 'Enter first name',
+                    prefixIcon: Icons.person_outline,
+                  ),
+
+                  // ── Холбоо барих ────────────────────────────
+                  _sectionHeader(AppLocalizations.isMongolian
+                      ? 'Холбоо барих'
+                      : 'Contact'),
+                  AppTextField(
+                    controller: _phoneCtrl,
+                    label: AppLocalizations.isMongolian
+                        ? 'Утасны дугаар'
+                        : 'Phone Number',
+                    hint: '8 оронтой дугаар',
+                    prefixIcon: Icons.phone_outlined,
+                    keyboardType: TextInputType.phone,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(8),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  AppTextField(
+                    controller: _emailCtrl,
+                    label: AppLocalizations.isMongolian
+                        ? 'И-мэйл / Gmail'
+                        : 'Email / Gmail',
+                    hint: 'example@gmail.com',
+                    prefixIcon: Icons.email_outlined,
+                    keyboardType: TextInputType.emailAddress,
+                  ),
+                  const SizedBox(height: 16),
+                  AppTextField(
+                    controller: _addressCtrl,
+                    label: AppLocalizations.homeAddress,
+                    hint: AppLocalizations.isMongolian
+                        ? 'Дүүрэг, хороо, байр, тоот'
+                        : 'District, khoroo, building, apt',
+                    prefixIcon: Icons.location_on_outlined,
+                    maxLines: 2,
+                  ),
+
+                  // ── Ажлын мэдээлэл ──────────────────────────
+                  _sectionHeader(AppLocalizations.isMongolian
+                      ? 'Ажлын мэдээлэл'
+                      : 'Employment Info'),
+                  DropdownButtonFormField<String>(
+                    value: _employmentType,
+                    dropdownColor: AppColors.surface,
+                    style: AppTextStyles.body,
+                    decoration: InputDecoration(
+                      labelText: AppLocalizations.employmentType,
+                      labelStyle: AppTextStyles.caption
+                          .copyWith(color: AppColors.textSecondary),
+                      prefixIcon: const Icon(Icons.work_outline,
+                          size: 20, color: AppColors.textSecondary),
+                      filled: true,
+                      fillColor: AppColors.surfaceVariant,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(color: AppColors.border),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(color: AppColors.border),
+                      ),
+                    ),
+                    items: _employmentTypes
+                        .map((t) => DropdownMenuItem(
+                            value: t['value'], child: Text(t['label']!)))
+                        .toList(),
+                    onChanged: (v) => setState(() => _employmentType = v),
+                  ),
+                  const SizedBox(height: 16),
+                  AppTextField(
+                    controller: _employerCtrl,
+                    label: AppLocalizations.employerName,
+                    hint: AppLocalizations.isMongolian
+                        ? 'Байгууллагын нэр'
+                        : 'Company name',
+                    prefixIcon: Icons.business_outlined,
+                  ),
+                  const SizedBox(height: 16),
+                  AppTextField(
+                    controller: _incomeCtrl,
+                    label: AppLocalizations.monthlyIncome,
+                    hint: '0',
+                    prefixIcon: Icons.attach_money_rounded,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  ),
+
+                  // ── Ойр дотны хүний мэдээлэл ────────────────
+                  _sectionHeader(AppLocalizations.isMongolian
+                      ? 'Ойр дотны хүний мэдээлэл'
+                      : 'Emergency Contact'),
+                  AppTextField(
+                    controller: _emergencyNameCtrl,
+                    label: AppLocalizations.isMongolian
+                        ? 'Ойр дотны хүний овог нэр'
+                        : 'Contact full name',
+                    hint: AppLocalizations.isMongolian
+                        ? 'Нэрийг оруулна уу'
+                        : 'Enter full name',
+                    prefixIcon: Icons.people_outline,
+                  ),
+                  const SizedBox(height: 16),
+                  AppTextField(
+                    controller: _emergencyPhoneCtrl,
+                    label: AppLocalizations.isMongolian
+                        ? 'Ойр дотны хүний утас'
+                        : 'Contact phone number',
+                    hint: '8 оронтой дугаар',
+                    prefixIcon: Icons.phone_in_talk_outlined,
+                    keyboardType: TextInputType.phone,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(8),
+                    ],
+                  ),
+
+                  const SizedBox(height: 32),
+                  AppButton(
+                    label: AppLocalizations.save,
+                    onPressed: _save,
+                    isLoading: _loading,
+                  ),
+                  const SizedBox(height: 32),
+                ],
               ),
             ),
     );
@@ -383,7 +781,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     if (val.contains(RegExp(r'[A-Z]'))) score++;
     if (val.contains(RegExp(r'[0-9]'))) score++;
     if (val.contains(RegExp(r'[^A-Za-z0-9]'))) score++;
-
     setState(() {
       if (score <= 1) {
         _strength = 0.25;
@@ -418,9 +815,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         Navigator.pop(context);
       }
     } catch (e) {
-      if (mounted) {
-        AppSnackbar.show(context, e.toString(), isError: true);
-      }
+      if (mounted) AppSnackbar.show(context, e.toString(), isError: true);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -448,7 +843,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Hint card
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
@@ -463,18 +857,14 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                       color: AppColors.primaryLight, size: 18),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Text(
-                      AppLocalizations.passwordHint,
-                      style: AppTextStyles.caption
-                          .copyWith(color: AppColors.textSecondary),
-                    ),
+                    child: Text(AppLocalizations.passwordHint,
+                        style: AppTextStyles.caption
+                            .copyWith(color: AppColors.textSecondary)),
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 24),
-
-            // Current password
             AppTextField(
               controller: _currentCtrl,
               label: AppLocalizations.currentPassword,
@@ -492,8 +882,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               ),
             ),
             const SizedBox(height: 16),
-
-            // New password
             AppTextField(
               controller: _newCtrl,
               label: AppLocalizations.newPassword,
@@ -511,8 +899,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 onPressed: () => setState(() => _showNew = !_showNew),
               ),
             ),
-
-            // Strength bar
             if (_newCtrl.text.isNotEmpty) ...[
               const SizedBox(height: 8),
               ClipRRect(
@@ -525,15 +911,11 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 ),
               ),
               const SizedBox(height: 4),
-              Text(
-                _strengthLabel,
-                style: AppTextStyles.caption.copyWith(
-                    color: _strengthColor, fontWeight: FontWeight.w600),
-              ),
+              Text(_strengthLabel,
+                  style: AppTextStyles.caption.copyWith(
+                      color: _strengthColor, fontWeight: FontWeight.w600)),
             ],
             const SizedBox(height: 16),
-
-            // Confirm password
             AppTextField(
               controller: _confirmCtrl,
               label: AppLocalizations.confirmPassword,
@@ -550,8 +932,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 onPressed: () => setState(() => _showConfirm = !_showConfirm),
               ),
             ),
-
-            // Match indicator
             if (_confirmCtrl.text.isNotEmpty) ...[
               const SizedBox(height: 6),
               Row(
@@ -582,150 +962,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               ),
             ],
             const SizedBox(height: 32),
-
-            AppButton(
-              label: AppLocalizations.save,
-              onPressed: _save,
-              isLoading: _loading,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// =============================================
-// МЭДЭЭЛЭЛ ЗАСАХ ДЭЛГЭЦ
-// =============================================
-class EditProfileScreen extends StatefulWidget {
-  const EditProfileScreen({super.key});
-
-  @override
-  State<EditProfileScreen> createState() => _EditProfileScreenState();
-}
-
-class _EditProfileScreenState extends State<EditProfileScreen> {
-  final _emailCtrl = TextEditingController();
-  final _incomeCtrl = TextEditingController();
-  final _employerCtrl = TextEditingController();
-  final _addressCtrl = TextEditingController();
-  String? _employmentType;
-  bool _loading = false;
-
-  List<Map<String, String>> get _employmentTypes => [
-        {
-          'value': 'employee',
-          'label': AppLocalizations.isMongolian ? 'Ажилтан' : 'Employee'
-        },
-        {
-          'value': 'self_employed',
-          'label':
-              AppLocalizations.isMongolian ? 'Өөрөө ажиллагч' : 'Self-employed'
-        },
-        {
-          'value': 'business_owner',
-          'label': AppLocalizations.isMongolian
-              ? 'Бизнес эзэмшигч'
-              : 'Business Owner'
-        },
-      ];
-
-  Future<void> _save() async {
-    setState(() => _loading = true);
-    try {
-      await SupabaseService.updateProfile({
-        'email': _emailCtrl.text.trim(),
-        'monthly_income': double.tryParse(_incomeCtrl.text) ?? 0,
-        'employer_name': _employerCtrl.text.trim(),
-        'address': _addressCtrl.text.trim(),
-        'employment_type': _employmentType,
-      });
-      if (mounted) {
-        AppSnackbar.show(
-          context,
-          AppLocalizations.isMongolian
-              ? 'Мэдээлэл амжилттай хадгалагдлаа!'
-              : 'Profile updated successfully!',
-        );
-        Navigator.pop(context);
-      }
-    } catch (_) {
-      if (mounted) {
-        AppSnackbar.show(
-          context,
-          AppLocalizations.isMongolian
-              ? 'Хадгалахад алдаа гарлаа'
-              : 'Failed to save',
-          isError: true,
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: Text(AppLocalizations.editProfile),
-        centerTitle: true,
-        leading: const BackButton(),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          children: [
-            AppTextField(
-              controller: _emailCtrl,
-              label: AppLocalizations.email,
-              hint: 'email@example.com',
-              prefixIcon: Icons.email_outlined,
-              keyboardType: TextInputType.emailAddress,
-            ),
-            const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
-              value: _employmentType,
-              decoration: InputDecoration(
-                labelText: AppLocalizations.employmentType,
-                prefixIcon: const Icon(Icons.work_outline,
-                    size: 20, color: AppColors.textSecondary),
-                filled: true,
-                fillColor: AppColors.surfaceVariant,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: AppColors.border),
-                ),
-              ),
-              items: _employmentTypes
-                  .map((t) => DropdownMenuItem(
-                      value: t['value'], child: Text(t['label']!)))
-                  .toList(),
-              onChanged: (v) => setState(() => _employmentType = v),
-            ),
-            const SizedBox(height: 16),
-            AppTextField(
-              controller: _employerCtrl,
-              label: AppLocalizations.employerName,
-              prefixIcon: Icons.business_outlined,
-            ),
-            const SizedBox(height: 16),
-            AppTextField(
-              controller: _incomeCtrl,
-              label: AppLocalizations.monthlyIncome,
-              prefixIcon: Icons.attach_money_rounded,
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 16),
-            AppTextField(
-              controller: _addressCtrl,
-              label: AppLocalizations.homeAddress,
-              prefixIcon: Icons.location_on_outlined,
-              maxLines: 2,
-            ),
-            const SizedBox(height: 32),
             AppButton(
                 label: AppLocalizations.save,
                 onPressed: _save,
@@ -735,6 +971,408 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       ),
     );
   }
+}
+
+// =============================================
+// МЭДЭГДЛИЙН ТОХИРГОО ДЭЛГЭЦ
+// =============================================
+class NotificationSettingsScreen extends StatefulWidget {
+  const NotificationSettingsScreen({super.key});
+
+  @override
+  State<NotificationSettingsScreen> createState() =>
+      _NotificationSettingsScreenState();
+}
+
+class _NotificationSettingsScreenState
+    extends State<NotificationSettingsScreen> {
+  bool _paymentReminder = true;
+  bool _loanStatus = true;
+  bool _promotions = false;
+  bool _overdue = true;
+  bool _appUpdates = false;
+
+  Widget _buildToggle({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+    Color? iconColor,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: (iconColor ?? AppColors.primaryLight).withOpacity(0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon,
+                color: iconColor ?? AppColors.primaryLight, size: 20),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: AppTextStyles.bodyMedium
+                        .copyWith(fontWeight: FontWeight.w600)),
+                const SizedBox(height: 2),
+                Text(subtitle,
+                    style: AppTextStyles.caption
+                        .copyWith(color: AppColors.textSecondary)),
+              ],
+            ),
+          ),
+          Switch(
+            value: value,
+            onChanged: onChanged,
+            activeColor: AppColors.primaryLight,
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isMn = AppLocalizations.isMongolian;
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: Text(AppLocalizations.notificationSettings),
+        centerTitle: true,
+        leading: const BackButton(),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildToggle(
+              icon: Icons.alarm_rounded,
+              title: isMn ? 'Төлбөрийн сануулга' : 'Payment Reminder',
+              subtitle: isMn
+                  ? 'Төлбөрийн хугацаа болоход мэдэгдэл авах'
+                  : 'Get notified before payment due date',
+              value: _paymentReminder,
+              onChanged: (v) => setState(() => _paymentReminder = v),
+            ),
+            _buildToggle(
+              icon: Icons.credit_score_rounded,
+              title: isMn ? 'Зээлийн төлөв' : 'Loan Status',
+              subtitle: isMn
+                  ? 'Зээлийн хүсэлтийн шийдвэр гарахад мэдэгдэл авах'
+                  : 'Get notified on loan application updates',
+              value: _loanStatus,
+              onChanged: (v) => setState(() => _loanStatus = v),
+            ),
+            _buildToggle(
+              icon: Icons.warning_amber_rounded,
+              title: isMn ? 'Хугацаа хэтэрсэн' : 'Overdue Alert',
+              subtitle: isMn
+                  ? 'Хугацаа хэтэрсэн төлбөрийн мэдэгдэл'
+                  : 'Alert when payment is overdue',
+              value: _overdue,
+              iconColor: AppColors.error,
+              onChanged: (v) => setState(() => _overdue = v),
+            ),
+            _buildToggle(
+              icon: Icons.local_offer_rounded,
+              title: isMn ? 'Урамшуулал & Санал' : 'Promotions & Offers',
+              subtitle: isMn
+                  ? 'Тусгай санал болон урамшууллын мэдээлэл'
+                  : 'Special offers and promotions',
+              value: _promotions,
+              iconColor: AppColors.warning,
+              onChanged: (v) => setState(() => _promotions = v),
+            ),
+            _buildToggle(
+              icon: Icons.system_update_rounded,
+              title: isMn ? 'Аппын шинэчлэлт' : 'App Updates',
+              subtitle: isMn
+                  ? 'Шинэ хувилбарын талаар мэдэгдэл авах'
+                  : 'Get notified about new versions',
+              value: _appUpdates,
+              onChanged: (v) => setState(() => _appUpdates = v),
+            ),
+            const SizedBox(height: 24),
+            AppButton(
+              label: AppLocalizations.save,
+              onPressed: () {
+                AppSnackbar.show(
+                  context,
+                  isMn ? 'Тохиргоо хадгалагдлаа!' : 'Settings saved!',
+                );
+                Navigator.pop(context);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// =============================================
+// ТУСЛАМЖ & ХОЛБОО БАРИХ ДЭЛГЭЦ
+// =============================================
+class HelpContactScreen extends StatefulWidget {
+  const HelpContactScreen({super.key});
+
+  @override
+  State<HelpContactScreen> createState() => _HelpContactScreenState();
+}
+
+class _HelpContactScreenState extends State<HelpContactScreen> {
+  final _messageCtrl = TextEditingController();
+  bool _sending = false;
+  int _expandedIndex = -1;
+
+  final List<Map<String, String>> _faqs = [
+    {
+      'q': 'Зээл хэрхэн авах вэ?',
+      'a':
+          '"Зээл авах" товчийг дарж, шаардлагатай мэдээллийг бөглөж, хүсэлт илгээнэ үү. Бид 24 цагийн дотор хариу өгнө.'
+    },
+    {
+      'q': 'Төлбөрийг хэрхэн хийх вэ?',
+      'a':
+          'Доорх "Зээл" таб руу орж, идэвхтэй зээлээ сонгоод "Төлбөр хийх" товчийг дарна уу.'
+    },
+    {
+      'q': 'Зээлийн оноо яаж нэмэгдэх вэ?',
+      'a':
+          'Төлбөрөө хугацаандаа хийх, зээлийн дүнгийн хязгаарт хүрэхгүй байх, мэдээллээ бүрэн оруулах зэрэг нь зээлийн оноог нэмэгдүүлнэ.'
+    },
+    {
+      'q': 'Нууц үгээ мартсан бол яах вэ?',
+      'a':
+          'Нэвтрэх дэлгэц дээрх "Нууц үг мартсан?" товчийг дарж, утасны дугаар эсвэл и-мэйлээр шинэчлэнэ үү.'
+    },
+    {
+      'q': 'Хэдэн зээл нэгэн зэрэг авч болох вэ?',
+      'a':
+          'Зээлийн оноо болон орлогын түвшингээс хамааран нэгэн зэрэг 1-3 зээл авах боломжтой.'
+    },
+  ];
+
+  @override
+  void dispose() {
+    _messageCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _sendMessage() async {
+    if (_messageCtrl.text.trim().isEmpty) {
+      AppSnackbar.show(
+        context,
+        AppLocalizations.isMongolian
+            ? 'Мессеж оруулна уу'
+            : 'Please enter your message',
+        isError: true,
+      );
+      return;
+    }
+    setState(() => _sending = true);
+    await Future.delayed(const Duration(seconds: 1));
+    if (mounted) {
+      setState(() => _sending = false);
+      _messageCtrl.clear();
+      AppSnackbar.show(
+        context,
+        AppLocalizations.isMongolian
+            ? 'Мессеж илгээгдлээ! Удахгүй холбогдоно.'
+            : 'Message sent! We will contact you soon.',
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isMn = AppLocalizations.isMongolian;
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: Text(AppLocalizations.helpContact),
+        centerTitle: true,
+        leading: const BackButton(),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Холбоо барих мэдээлэл ───────────────────
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF3730A3), AppColors.primary],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Column(
+                children: [
+                  _ContactTile(
+                    icon: Icons.phone_rounded,
+                    label: isMn ? 'Утас' : 'Phone',
+                    value: '+976 7700-0000',
+                  ),
+                  const Divider(color: Colors.white24, height: 20),
+                  _ContactTile(
+                    icon: Icons.email_outlined,
+                    label: isMn ? 'И-мэйл' : 'Email',
+                    value: 'support@zeel.mn',
+                  ),
+                  const Divider(color: Colors.white24, height: 20),
+                  _ContactTile(
+                    icon: Icons.access_time_rounded,
+                    label: isMn ? 'Ажлын цаг' : 'Working Hours',
+                    value: isMn
+                        ? 'Да-Ба: 09:00 - 18:00'
+                        : 'Mon-Fri: 09:00 - 18:00',
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 28),
+
+            // ── Түгээмэл асуулт ─────────────────────────
+            Text(
+              isMn ? 'Түгээмэл асуулт' : 'FAQ',
+              style: AppTextStyles.heading3,
+            ),
+            const SizedBox(height: 12),
+            ...List.generate(_faqs.length, (i) {
+              final expanded = _expandedIndex == i;
+              return GestureDetector(
+                onTap: () => setState(() => _expandedIndex = expanded ? -1 : i),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: expanded
+                        ? AppColors.primaryLight.withOpacity(0.08)
+                        : AppColors.surface,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: expanded
+                          ? AppColors.primaryLight.withOpacity(0.3)
+                          : AppColors.border,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              _faqs[i]['q']!,
+                              style: AppTextStyles.bodyMedium
+                                  .copyWith(fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                          Icon(
+                            expanded
+                                ? Icons.keyboard_arrow_up_rounded
+                                : Icons.keyboard_arrow_down_rounded,
+                            color: AppColors.textSecondary,
+                          ),
+                        ],
+                      ),
+                      if (expanded) ...[
+                        const SizedBox(height: 10),
+                        Text(
+                          _faqs[i]['a']!,
+                          style: AppTextStyles.body
+                              .copyWith(color: AppColors.textSecondary),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              );
+            }),
+
+            const SizedBox(height: 28),
+
+            // ── Мессеж илгээх ───────────────────────────
+            Text(
+              isMn ? 'Мессеж илгээх' : 'Send Message',
+              style: AppTextStyles.heading3,
+            ),
+            const SizedBox(height: 12),
+            AppTextField(
+              controller: _messageCtrl,
+              label: isMn
+                  ? 'Таны асуулт эсвэл санал'
+                  : 'Your question or feedback',
+              hint: isMn ? 'Энд бичнэ үү...' : 'Write here...',
+              prefixIcon: Icons.message_outlined,
+              maxLines: 4,
+            ),
+            const SizedBox(height: 16),
+            AppButton(
+              label: isMn ? 'Илгээх' : 'Send',
+              onPressed: _sendMessage,
+              isLoading: _sending,
+              icon: Icons.send_rounded,
+            ),
+            const SizedBox(height: 32),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ContactTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+
+  const _ContactTile(
+      {required this.icon, required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) => Row(
+        children: [
+          Icon(icon, color: Colors.white70, size: 20),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label,
+                  style: const TextStyle(
+                      color: Colors.white54,
+                      fontSize: 11,
+                      fontFamily: 'Gilroy')),
+              Text(value,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      fontFamily: 'Gilroy')),
+            ],
+          ),
+        ],
+      );
 }
 
 // =============================================
@@ -879,18 +1517,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    n['title'] ?? '',
-                                    style: AppTextStyles.bodyMedium
-                                        .copyWith(fontWeight: FontWeight.w700),
-                                  ),
+                                  Text(n['title'] ?? '',
+                                      style: AppTextStyles.bodyMedium.copyWith(
+                                          fontWeight: FontWeight.w700)),
                                   const SizedBox(height: 4),
-                                  Text(
-                                    n['body'] ?? '',
-                                    style: AppTextStyles.caption,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
+                                  Text(n['body'] ?? '',
+                                      style: AppTextStyles.caption,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis),
                                   const SizedBox(height: 4),
                                   Text(
                                     AppUtils.formatDateTime(

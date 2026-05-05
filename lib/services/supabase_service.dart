@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/models.dart';
 
@@ -84,6 +85,33 @@ class SupabaseService {
 
   static Future<void> signOut() async => await _client.auth.signOut();
 
+  // ── Нүүр зураг upload хийх ──────────────────────────────
+  static Future<String> uploadAvatar({
+    required Uint8List bytes,
+    required String extension,
+  }) async {
+    if (currentUserId == null) throw Exception('Нэвтрээгүй байна');
+
+    final path = 'avatars/$currentUserId.$extension';
+
+    await _client.storage.from('avatars').uploadBinary(
+          path,
+          bytes,
+          fileOptions: const FileOptions(
+            upsert: true,
+            contentType: 'image/jpeg',
+          ),
+        );
+
+    final url = _client.storage.from('avatars').getPublicUrl(path);
+
+    await _client
+        .from('profiles')
+        .update({'avatar_url': url}).eq('id', currentUserId!);
+
+    return url;
+  }
+
   // ── Нууц үг солих ──
   static Future<void> changePassword({
     required String currentPassword,
@@ -93,13 +121,11 @@ class SupabaseService {
     if (user == null) throw Exception('Нэвтрээгүй байна');
     if (user.email == null) throw Exception('И-мэйл олдсонгүй');
 
-    // Одоогийн нууц үгийг баталгаажуулах
     await _client.auth.signInWithPassword(
       email: user.email!,
       password: currentPassword,
     );
 
-    // Шинэ нууц үг тохируулах
     final response = await _client.auth.updateUser(
       UserAttributes(password: newPassword),
     );

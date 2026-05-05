@@ -71,7 +71,10 @@ class _LoanProductsScreenState extends State<LoanProductsScreen> {
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => ApplyLoanScreen(product: p),
+                      builder: (_) => ApplyLoanScreen(
+  product: p,
+  initialAmount: 0,
+),
                     ),
                   ),
                 );
@@ -84,7 +87,7 @@ class _LoanProductsScreenState extends State<LoanProductsScreen> {
 // ЗЭЭЛ АВАХ ДЭЛГЭЦ
 class ApplyLoanScreen extends StatefulWidget {
   final LoanProductModel product;
-  const ApplyLoanScreen({super.key, required this.product});
+  const ApplyLoanScreen({super.key, required this.product, required double initialAmount});
   @override
   State<ApplyLoanScreen> createState() => _ApplyLoanScreenState();
 }
